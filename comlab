@@ -1,0 +1,247 @@
+Imports System.Windows.Forms.VisualStyles.VisualStyleElement.StartPanel
+Imports Windows.Win32.System
+
+Public Class Form1
+    Private Sub btnLogin_Click(sender As Object, e As EventArgs) Handles btnLogin.Click
+        Dim username As String = txtUsername.Text
+        Dim password As String = txtPassword.Text
+        Dim role As String = cmbRole.SelectedItem?.ToString()
+
+        If username = "admin" And password = "admin123" And role = "Admin" Then
+            lblMessage.Text = ""
+            Dim adminForm As New AdminForm()
+            adminForm.Show()
+            Me.Hide()
+
+        ElseIf username = "reception" And password = "recep123" And role = "Receptionist" Then
+            lblMessage.Text = ""
+            Dim receptionistForm As New ReceptionistForm()
+            receptionistForm.Show()
+            Me.Hide()
+
+        ElseIf username = "housekeeper" And password = "house123" And role = "Housekeeping" Then
+            lblMessage.Text = ""
+            Dim housekeepingForm As New HousekeepingForm()
+            housekeepingForm.Show()
+            Me.Hide()
+
+        Else
+            lblMessage.Text = "Invalid username, password, or role."
+            lblMessage.ForeColor = Color.Red
+        End If
+    End Sub
+
+
+
+
+    Private Sub TextBox2_TextChanged(sender As Object, e As EventArgs) Handles txtPassword.TextChanged
+
+    End Sub
+End Class
+
+
+Imports System.Data.DataTable
+Imports System.Collections.Generic
+
+Public Class AdminForm
+    Private rooms As New List(Of Room)
+    Private bindingSource As New BindingSource()
+
+    Private Sub AdminForm_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' Initialize some sample rooms (or load from file)
+        rooms.Add(New Room With {.RoomNumber = 101, .RoomType = "Single", .Price = 50D, .Amenities = "TV, Wi-Fi", .IsAvailable = True})
+        rooms.Add(New Room With {.RoomNumber = 102, .RoomType = "Double", .Price = 80D, .Amenities = "TV, Wi-Fi, Balcony", .IsAvailable = False})
+
+        bindingSource.DataSource = rooms
+        dgvRooms.DataSource = bindingSource
+        dgvRooms.AutoGenerateColumns = False
+        'Set up columns (This part should be done after setting DataSource)
+        dgvRooms.Columns("RoomNumber").HeaderText = "Room Number"
+        dgvRooms.Columns("RoomType").HeaderText = "Room Type"
+        dgvRooms.Columns("Price").HeaderText = "Price"
+        dgvRooms.Columns("Amenities").HeaderText = "Amenities"
+        dgvRooms.Columns("IsAvailable").HeaderText = "Available"
+
+    End Sub
+
+    Private Sub btnAddRoom_Click(sender As Object, e As EventArgs) Handles btnAddRoom.Click
+        Dim frmAdd As New frmAddRoom()
+        frmAdd.ExistingRooms = rooms ' Pass the rooms list to frmAddRoom
+        If frmAdd.ShowDialog() = DialogResult.OK Then
+            rooms.Add(frmAdd.NewRoom)
+            bindingSource.ResetBindings(False)
+        End If
+    End Sub
+
+    Private Sub btnEditRoom_Click(sender As Object, e As EventArgs) Handles btnEditRoom.Click
+        Try
+            If dgvRooms.SelectedRows.Count > 0 Then
+                Dim selectedRoom As Room = DirectCast(dgvRooms.SelectedRows(0).DataBoundItem, Room)
+                Dim frmEdit As New frmEditRoom()
+                frmEdit.Room = selectedRoom
+                If frmEdit.ShowDialog() = DialogResult.OK Then
+                    Dim index = rooms.IndexOf(selectedRoom)
+                    If index >= 0 Then
+                        rooms(index) = frmEdit.UpdatedRoom
+                        bindingSource.ResetBindings(False)
+                    Else
+                        MessageBox.Show("Error updating room. Room not found in list.")
+                    End If
+                End If
+            Else
+                MessageBox.Show("Please select a room to edit.")
+            End If
+        Catch ex As Exception
+            MessageBox.Show("An error occurred: " & ex.Message)
+        End Try
+    End Sub
+
+    'Room Class Definition
+    Public Class Room
+        Public Property RoomNumber As Integer
+        Public Property RoomType As String
+        Public Property Price As Decimal
+        Public Property Amenities As String
+        Public Property IsAvailable As Boolean
+    End Class
+End Class
+
+Imports ComProg.AdminForm
+
+Public Class frmAddRoom
+    Public Property NewRoom As Room
+    Public Property ExistingRooms As List(Of Room)
+
+    Private Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
+        Try
+            ' Input Validation
+            If String.IsNullOrEmpty(txtRoomNumber.Text) Then
+                MessageBox.Show("Please enter a room number.")
+                Return
+            End If
+
+            If cboRoomType.SelectedItem Is Nothing Then
+                MessageBox.Show("Please select a room type.")
+                Return
+            End If
+
+            If String.IsNullOrWhiteSpace(txtPrice.Text) Then
+                MessageBox.Show("Please enter a price.")
+                Return
+            End If
+
+            Dim roomNumber As Integer
+            If Not Integer.TryParse(txtRoomNumber.Text, roomNumber) Then
+                MessageBox.Show("Invalid room number format.")
+                Return
+            End If
+
+            Dim price As Decimal
+            If Not Decimal.TryParse(txtPrice.Text, price) Then
+                MessageBox.Show("Invalid price format.")
+                Return
+            End If
+
+            If price <= 0 Then
+                MessageBox.Show("Price must be greater than zero.")
+                Return
+            End If
+
+            If ExistingRooms.Any(Function(r) r.RoomNumber = roomNumber) Then
+                MessageBox.Show("Room number already exists.")
+                Return
+            End If
+
+            NewRoom = New Room With {
+                .RoomNumber = roomNumber,
+                .RoomType = cboRoomType.SelectedItem.ToString(),
+                .Price = price,
+                .Amenities = txtAmenities.Text,
+                .IsAvailable = chkIsAvailable.Checked
+            }
+            Me.DialogResult = DialogResult.OK
+            Me.Close()
+
+        Catch ex As FormatException
+            MessageBox.Show("Invalid input format. Please check your entries.")
+        Catch ex As OverflowException
+            MessageBox.Show("Value too large. Please enter a smaller number.")
+        Catch ex As Exception
+            MessageBox.Show("An unexpected error occurred: " & ex.Message)
+        End Try
+    End Sub
+
+    Private Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+        Me.Close()
+    End Sub
+
+    Private Sub frmAddRoom_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' Add your room types to the ComboBox here
+        cboRoomType.Items.Add("Single")
+        cboRoomType.Items.Add("Double")
+        cboRoomType.Items.Add("Suite")
+        ' Add other room types as needed
+    End Sub
+End Class
+
+Imports ComProg.AdminForm
+
+Public Class frmEditRoom
+    Public Property Room As Room
+    Public Property UpdatedRoom As Room
+
+    Private Sub frmEditRoom_Load(sender As Object, e As EventArgs) Handles MyBase.Load
+        ' Load existing room data into the controls
+        txtRoomNumber.Text = Room.RoomNumber.ToString()
+        cboRoomType.Items.Add("Single")
+        cboRoomType.Items.Add("Double")
+        cboRoomType.Items.Add("Suite")
+        If Not Room.RoomType Is Nothing Then
+            cboRoomType.SelectedItem = Room.RoomType
+        End If
+        txtPrice.Text = Room.Price.ToString()
+        txtAmenities.Text = Room.Amenities
+        chkIsAvailable.Checked = Room.IsAvailable
+    End Sub
+
+    Private Sub btnSave_Click(sender As Object, e As EventArgs) Handles btnSave.Click
+        Try
+            If String.IsNullOrWhiteSpace(txtPrice.Text) Then
+                MessageBox.Show("Please enter a valid price.")
+                Return
+            End If
+
+            If cboRoomType.SelectedItem Is Nothing Then
+                MessageBox.Show("Please select a room type.")
+                Return
+            End If
+
+            Dim price As Decimal
+            If Not Decimal.TryParse(txtPrice.Text, price) Then
+                MessageBox.Show("Invalid price format. Please enter a number.")
+                Return
+            End If
+
+            If price <= 0 Then
+                MessageBox.Show("Price must be greater than zero.")
+                Return
+            End If
+
+            UpdatedRoom = New Room With {
+                .RoomNumber = Room.RoomNumber,
+                .RoomType = cboRoomType.SelectedItem.ToString(),
+                .Price = price,
+                .Amenities = If(String.IsNullOrEmpty(txtAmenities.Text), "", txtAmenities.Text), 'Handle null Amenities
+                .IsAvailable = chkIsAvailable.Checked
+            }
+            Me.DialogResult = DialogResult.OK
+            Me.Close()
+        Catch ex As Exception
+            MessageBox.Show("Error updating room details: " & ex.Message) ' More informative message
+        End Try
+    End Sub
+
+    Private Sub btnCancel_Click(sender As Object, e As EventArgs) Handles btnCancel.Click
+        Me.Close()
+    End Sub
+End Class
